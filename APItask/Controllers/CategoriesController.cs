@@ -1,5 +1,4 @@
-﻿using APItask.DAL;
-using APItask.Entities;
+﻿
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,15 +10,17 @@ namespace APItask.Controllers
     public class CategoriesController : ControllerBase
     {
         private readonly AppDbContext _db;
-        public CategoriesController(AppDbContext db)
+        private readonly IRepository _repository;
+        public CategoriesController(AppDbContext db,IRepository repository)
         {
             _db = db;
+            _repository = repository;
         }
 
         [HttpGet]
         public async Task<IActionResult> Get(int page=1,int take=3)
         {
-            List<Category> categories = await _db.Categories.Skip((page-1)*take).Take(take).ToListAsync();
+            IEnumerable<Category> categories = await _repository.GetAllAsync();
 
             return Ok(categories);
         }
@@ -28,7 +29,7 @@ namespace APItask.Controllers
         {
             if (id <= 0) return StatusCode(StatusCodes.Status400BadRequest);
 
-            Category category=await _db.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            Category category=await _repository.GetByIdAsync(id);
 
             if(category is null) return StatusCode(StatusCodes.Status404NotFound);
 
@@ -36,10 +37,15 @@ namespace APItask.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(Category category)
+        public async Task<IActionResult> Create([FromForm]CreateCategoryDto categoryDto )
         {
-            await _db.Categories.AddAsync(category);
-            await _db.SaveChangesAsync();
+
+            Category category = new Category
+            {
+                Name = categoryDto.Name,
+            };
+            await _repository.AddAsync(category);
+            await _repository.SaveChangesAsync();
 
             return StatusCode(StatusCodes.Status201Created,category);
         }
@@ -48,12 +54,13 @@ namespace APItask.Controllers
         {
             if (id <= 0) return StatusCode(StatusCodes.Status400BadRequest);
 
-            Category existed = await _db.Categories.FirstOrDefaultAsync(c=>c.Id == id);
+            Category existed = await _repository.GetByIdAsync(id);
 
             if (existed is null) return StatusCode(StatusCodes.Status404NotFound);
 
             existed.Name = name;
-            await _db.SaveChangesAsync();
+            _repository.Update(existed);
+            await _repository.SaveChangesAsync();
 
             return NoContent();
         }
@@ -62,12 +69,12 @@ namespace APItask.Controllers
         {
             if(id<=0) return StatusCode(StatusCodes.Status400BadRequest);
 
-            Category existed = await _db.Categories.FirstAsync(c=>c.Id == id);
+            Category existed = await _repository.GetByIdAsync(id);
 
             if (existed is null) return StatusCode(StatusCodes.Status404NotFound);
 
-            _db.Categories.Remove(existed);
-            await _db.SaveChangesAsync();
+            _repository.Delete(existed);
+            await _repository.SaveChangesAsync();
 
             return NoContent();
         }
