@@ -45,7 +45,7 @@ namespace APItask.Services.Implementations
             {
                 Name= tagDto.Name,
             });
-
+            await _repository.SaveChangesAsync();
         }
         public async Task UpdateAsync(int id, UpdateTagDto updateTagDto)
         {
