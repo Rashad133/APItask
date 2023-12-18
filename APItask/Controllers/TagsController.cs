@@ -1,5 +1,8 @@
 ﻿using APItask.DAL;
+using APItask.Dtos.Tag;
 using APItask.Entities;
+using APItask.Repositoris.Interfaces;
+using APItask.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,48 +13,36 @@ namespace APItask.Controllers
     [ApiController]
     public class TagsController : ControllerBase
     {
-        private readonly AppDbContext _db;
-        public TagsController(AppDbContext db)
+        private readonly ITagService _service;
+        public TagsController(ITagService service)
         {
-            _db = db;
+            _service = service;
         }
-
 
         [HttpGet]
         public async Task<IActionResult> Get(int page=1,int take=3)
         {
-            List<Tag> tags= await _db.Tags.Skip((page-1)*take).Take(take).ToListAsync();
-            return Ok(tags);
+            return Ok(await _service.GetAllAsync(page, take)); 
         }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
             if (id <= 0) return StatusCode(StatusCodes.Status400BadRequest);
-
-            Tag tag = await _db.Tags.FirstOrDefaultAsync(t=>t.Id==id);
-
-            if(tag is null) return StatusCode(StatusCodes.Status404NotFound);
-
-            return StatusCode(StatusCodes.Status200OK);
+            return StatusCode(StatusCodes.Status200OK, await _service.GetAsync(id));
         }
         [HttpPost]
-        public async Task<IActionResult> Create(Tag tag)
+        public async Task<IActionResult> Create([FromForm]CreateTagDto tagDto)
         {
-            await _db.Tags.AddAsync(tag);
-            await _db.SaveChangesAsync();
-
+            await _service.CreateAsync(tagDto);
             return StatusCode(StatusCodes.Status201Created);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id,string name)
+        public async Task<IActionResult> Update(int id,UpdateTagDto updateTagDto)
         {
             if(id<=0) return StatusCode(StatusCodes.Status400BadRequest);
-            Tag existed = await _db.Tags.FirstOrDefaultAsync(t=>t.Id==id);
-            if (existed is null) return StatusCode(StatusCodes.Status404NotFound);
-
-            existed.Name = name;
-            await _db.SaveChangesAsync();
+            await _service.UpdateAsync(id,updateTagDto);
 
             return NoContent();
         }
@@ -60,15 +51,9 @@ namespace APItask.Controllers
         {
             if (id <= 0) return StatusCode(StatusCodes.Status400BadRequest);
 
-            Tag existed= await _db.Tags.FirstOrDefaultAsync(t=>t.Id == id);
-
-            if (existed is null) return StatusCode(StatusCodes.Status404NotFound);
-
-             _db.Tags.Remove(existed);
-            await _db.SaveChangesAsync();
+            await _service.DeleteAsync(id);
 
             return NoContent();
-
         }
     }
 }
